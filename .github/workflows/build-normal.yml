@@ -29,10 +29,10 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Verify AX3000T MTK U-Boot target
+      - name: Verify AX3000T H-Uboot target
         working-directory: openwrt
         run: |
-          grep -A25 -B2 "Device/xiaomi_mi-router-ax3000t-mtkuboot" \
+          grep -A20 -B2 "Device/xiaomi_mi-router-ax3000t-mtkuboot" \
             target/linux/mediatek/image/filogic.mk
 
       - name: Create firmware config
@@ -57,6 +57,7 @@ jobs:
           CONFIG_PACKAGE_curl=y
           CONFIG_PACKAGE_wget-ssl=y
           CONFIG_PACKAGE_openssh-sftp-server=y
+          CONFIG_PACKAGE_unzip=y
 
           CONFIG_PACKAGE_ip-full=y
           CONFIG_PACKAGE_iptables-nft=y
@@ -67,7 +68,6 @@ jobs:
           CONFIG_PACKAGE_kmod-nft-tproxy=y
           CONFIG_PACKAGE_kmod-nft-queue=y
           CONFIG_PACKAGE_kmod-inet-diag=y
-          CONFIG_PACKAGE_kmod-netlink-diag=y
 
           CONFIG_PACKAGE_coreutils=y
           CONFIG_PACKAGE_coreutils-base64=y
@@ -75,7 +75,7 @@ jobs:
 
           make defconfig
 
-            - name: Verify target and base dependencies
+      - name: Verify target and base dependencies
         working-directory: openwrt
         run: |
           REQUIRED_CONFIGS="
@@ -85,7 +85,6 @@ jobs:
           CONFIG_PACKAGE_kmod-nft-tproxy=y
           CONFIG_PACKAGE_kmod-nft-queue=y
           CONFIG_PACKAGE_kmod-inet-diag=y
-          CONFIG_PACKAGE_kmod-netlink-diag=y
           CONFIG_PACKAGE_ip-full=y
           CONFIG_PACKAGE_iptables-nft=y
           CONFIG_PACKAGE_nftables=y
