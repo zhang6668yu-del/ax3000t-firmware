@@ -29,11 +29,16 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Verify AX3000T H-Uboot target
+      - name: Verify AX3000T MTK U-Boot 112M target
         working-directory: openwrt
         run: |
-          grep -A20 -B2 "Device/xiaomi_mi-router-ax3000t-mtkuboot" \
+          grep -A25 -B2 "define Device/xiaomi_mi-router-ax3000t-mtkuboot" \
             target/linux/mediatek/image/filogic.mk
+
+          grep -q "IMAGE_SIZE := 114688k" \
+            target/linux/mediatek/image/filogic.mk
+
+          echo "AX3000T MTK U-Boot 112M target found."
 
       - name: Create firmware config
         working-directory: openwrt
@@ -56,8 +61,8 @@ jobs:
           CONFIG_PACKAGE_bash=y
           CONFIG_PACKAGE_curl=y
           CONFIG_PACKAGE_wget-ssl=y
-          CONFIG_PACKAGE_openssh-sftp-server=y
           CONFIG_PACKAGE_unzip=y
+          CONFIG_PACKAGE_openssh-sftp-server=y
 
           CONFIG_PACKAGE_ip-full=y
           CONFIG_PACKAGE_iptables-nft=y
@@ -75,30 +80,32 @@ jobs:
 
           make defconfig
 
-      - name: Verify target and base dependencies
+      - name: Verify target and required base dependencies
         working-directory: openwrt
+        shell: bash
         run: |
-          REQUIRED_CONFIGS="
-          CONFIG_TARGET_mediatek_filogic_DEVICE_xiaomi_mi-router-ax3000t-mtkuboot=y
-          CONFIG_PACKAGE_kmod-tun=y
-          CONFIG_PACKAGE_kmod-nft-socket=y
-          CONFIG_PACKAGE_kmod-nft-tproxy=y
-          CONFIG_PACKAGE_kmod-nft-queue=y
-          CONFIG_PACKAGE_kmod-inet-diag=y
-          CONFIG_PACKAGE_ip-full=y
-          CONFIG_PACKAGE_iptables-nft=y
-          CONFIG_PACKAGE_nftables=y
-          "
+          set -e
 
-          echo "$REQUIRED_CONFIGS" | while read line; do
-            [ -z "$line" ] && continue
-            if ! grep -qx "$line" .config; then
-              echo "ERROR: Missing required config: $line"
+          check_config() {
+            local cfg="$1"
+            if ! grep -qx "$cfg" .config; then
+              echo "ERROR: Missing required config: $cfg"
               exit 1
             fi
-          done
+            echo "OK: $cfg"
+          }
 
-          echo "All required target and dependency configs are enabled."
+          check_config "CONFIG_TARGET_mediatek_filogic_DEVICE_xiaomi_mi-router-ax3000t-mtkuboot=y"
+          check_config "CONFIG_PACKAGE_kmod-tun=y"
+          check_config "CONFIG_PACKAGE_kmod-nft-socket=y"
+          check_config "CONFIG_PACKAGE_kmod-nft-tproxy=y"
+          check_config "CONFIG_PACKAGE_kmod-nft-queue=y"
+          check_config "CONFIG_PACKAGE_kmod-inet-diag=y"
+          check_config "CONFIG_PACKAGE_ip-full=y"
+          check_config "CONFIG_PACKAGE_iptables-nft=y"
+          check_config "CONFIG_PACKAGE_nftables=y"
+
+          echo "All required target and base dependency configs are enabled."
 
       - name: Download sources
         working-directory: openwrt
@@ -110,17 +117,49 @@ jobs:
         run: |
           make -j$(nproc) V=s
 
-      - name: List firmware
+      - name: Verify firmware output
+        working-directory: openwrt
+        shell: bash
         run: |
-          find openwrt/bin/targets/mediatek/filogic \
-            -maxdepth 1 -type f -printf '%f\n'
+          set -e
+
+          OUT="bin/targets/mediatek/filogic"
+
+          echo "Firmware files:"
+          ls -lh "$OUT"
+
+          FACTORY_FILE=$(find "$OUT" -maxdepth 1 -type f \
+            -name '*xiaomi_mi-router-ax3000t-mtkuboot*factory.bin' \
+            | head -n 1)
+
+          SYSUPGRADE_FILE=$(find "$OUT" -maxdepth 1 -type f \
+            -name '*xiaomi_mi-router-ax3000t-mtkuboot*sysupgrade.bin' \
+            | head -n 1)
+
+          if [ -z "$FACTORY_FILE" ]; then
+            echo "ERROR: factory.bin not found."
+            exit 1
+          fi
+
+          if [ -z "$SYSUPGRADE_FILE" ]; then
+            echo "ERROR: sysupgrade.bin not found."
+            exit 1
+          fi
+
+          echo "Factory firmware:"
+          ls -lh "$FACTORY_FILE"
+
+          echo "Sysupgrade firmware:"
+          ls -lh "$SYSUPGRADE_FILE"
 
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
-          name: AX3000T-H-Uboot-112M-24.10
+          name: AX3000T-MT753x-H-Uboot-112M-24.10
+          if-no-files-found: error
           path: |
-            openwrt/bin/targets/mediatek/filogic/*ax3000t-mtkuboot*
+            openwrt/bin/targets/mediatek/filogic/*xiaomi_mi-router-ax3000t-mtkuboot*factory.bin
+            openwrt/bin/targets/mediatek/filogic/*xiaomi_mi-router-ax3000t-mtkuboot*sysupgrade.bin
             openwrt/bin/targets/mediatek/filogic/sha256sums
             openwrt/bin/targets/mediatek/filogic/config.buildinfo
             openwrt/bin/targets/mediatek/filogic/profiles.json
