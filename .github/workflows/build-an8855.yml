@@ -14,14 +14,21 @@ jobs:
             --branch openwrt-24.10-6.6 \
             https://github.com/padavanonly/immortalwrt-mt798x-6.6.git openwrt
 
-      - name: Show AN8855 related targets
+      - name: Search all AN8855 references
         working-directory: openwrt
         run: |
-          echo "===== filogic.mk matches ====="
-          grep -n -A25 -B5 -Ei \
-            'ax3000t.*an8855|an8855.*ax3000t' \
+          echo "===== ALL AN8855 REFERENCES ====="
+          grep -Rni --exclude-dir=.git "an8855" target/linux/mediatek 2>/dev/null || true
+
+          echo "===== AX3000T REFERENCES ====="
+          grep -Rni --exclude-dir=.git "ax3000t" target/linux/mediatek 2>/dev/null || true
+
+          echo "===== FILOGIC DEVICE DEFINITIONS ====="
+          grep -n "define Device/xiaomi_mi-router-ax3000t" \
             target/linux/mediatek/image/filogic.mk || true
 
-          echo "===== DTS / DTSI matches ====="
-          find target/linux/mediatek -type f \
-            | grep -Ei 'ax3000t.*an8855|an8855.*ax3000t' || true
+          echo "===== RELATED DTS FILES ====="
+          find target/linux/mediatek \
+            -type f \
+            \( -iname '*ax3000t*' -o -iname '*an8855*' \) \
+            -print || true
