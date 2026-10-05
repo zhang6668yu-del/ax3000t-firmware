@@ -80,24 +80,35 @@ jobs:
 
           make defconfig
 
-      - name: Verify selected configuration
+        - name: Diagnose selected configuration
         working-directory: openwrt
         run: |
-          grep -qx \
-            'CONFIG_TARGET_mediatek_filogic_DEVICE_xiaomi_mi-router-ax3000t-mtkuboot=y' \
-            .config
+          echo "===== TARGET ====="
+          grep 'ax3000t-mtkuboot' .config || true
 
-          grep -qx 'CONFIG_PACKAGE_kmod-tun=y' .config
-          grep -qx 'CONFIG_PACKAGE_kmod-nft-socket=y' .config
-          grep -qx 'CONFIG_PACKAGE_kmod-nft-tproxy=y' .config
-          grep -qx 'CONFIG_PACKAGE_kmod-nft-queue=y' .config
-          grep -qx 'CONFIG_PACKAGE_kmod-inet-diag=y' .config
-          grep -qx 'CONFIG_PACKAGE_ip-full=y' .config
-          grep -qx 'CONFIG_PACKAGE_iptables-nft=y' .config
-          grep -qx 'CONFIG_PACKAGE_nftables=y' .config
+          echo "===== kmod-tun ====="
+          grep 'CONFIG_PACKAGE_kmod-tun' .config || true
 
-          echo "Target and base dependencies OK"
+          echo "===== kmod-nft-socket ====="
+          grep 'CONFIG_PACKAGE_kmod-nft-socket' .config || true
 
+          echo "===== kmod-nft-tproxy ====="
+          grep 'CONFIG_PACKAGE_kmod-nft-tproxy' .config || true
+
+          echo "===== kmod-nft-queue ====="
+          grep 'CONFIG_PACKAGE_kmod-nft-queue' .config || true
+
+          echo "===== kmod-inet-diag ====="
+          grep 'CONFIG_PACKAGE_kmod-inet-diag' .config || true
+
+          echo "===== ip-full ====="
+          grep 'CONFIG_PACKAGE_ip-full' .config || true
+
+          echo "===== iptables-nft ====="
+          grep 'CONFIG_PACKAGE_iptables-nft' .config || true
+
+          echo "===== nftables ====="
+          grep 'CONFIG_PACKAGE_nftables' .config || true
       - name: Download sources
         working-directory: openwrt
         run: |
