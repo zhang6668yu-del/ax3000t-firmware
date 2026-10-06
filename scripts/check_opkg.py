@@ -22,8 +22,13 @@ with tempfile.TemporaryDirectory() as temporary:
         member = next(m for m in archive.getmembers() if m.name.endswith('/root'))
         squashfs.write_bytes(archive.extractfile(member).read())
     filesystem = directory / 'root'
-    subprocess.run([str(root / 'staging_dir/host/bin/unsquashfs4'), '-d', str(filesystem),
-                    str(squashfs)], check=True, stdout=subprocess.DEVNULL)
+    # Preserve the image's device nodes while extracting on an unprivileged runner.
+    subprocess.run(['sudo', str(root / 'staging_dir/host/bin/unsquashfs4'),
+                    '-d', str(filesystem), str(squashfs)],
+                   check=True, stdout=subprocess.DEVNULL)
+    # Run the real firmware client under proot as the runner user and allow cleanup.
+    subprocess.run(['sudo', 'chown', '-hR', f'{os.getuid()}:{os.getgid()}',
+                    str(filesystem)], check=True)
     feeds = (filesystem / 'etc/opkg/distfeeds.conf').read_text()
     assert feeds == f'src/gz ax3000t_custom {url}\n', feeds
     print('cat /etc/opkg/distfeeds.conf:\n' + feeds, flush=True)
