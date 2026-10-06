@@ -1,4 +1,4 @@
-name: AX3000T H-Uboot 112M - MT7531 and AN8855
+name: AX3000T H-Uboot 112M 24.10.2 - MT7531 and AN8855
 
 on:
   workflow_dispatch:
@@ -60,6 +60,15 @@ jobs:
           grep -E '^CONFIG_TARGET_|^CONFIG_PACKAGE_(luci-ssl|libustream|kmod-nft|kmod-tun|kmod-inet|nftables)' openwrt/.config || true
           # Target selection is essential. Package resolution is shown above.
           grep -qx "CONFIG_TARGET_mediatek_filogic_DEVICE_${PROFILE}=y" openwrt/.config
+      - name: Verify official 24.10.2 feed indexes
+        run: |
+          set -o pipefail
+          repo=https://downloads.immortalwrt.org/releases/24.10.2
+          for path in targets/mediatek/filogic/packages packages/aarch64_cortex-a53/{base,luci,packages,routing,telephony}; do
+            curl -fLsS --retry 3 --retry-all-errors "$repo/$path/Packages.gz" | gzip -t
+            curl -fLsS --retry 3 --retry-all-errors "$repo/$path/Packages.sig" -o /dev/null
+            echo "Feed index available: $repo/$path"
+          done
       - name: Download sources
         working-directory: openwrt
         run: make download -j8
@@ -73,7 +82,7 @@ jobs:
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
-          name: AX3000T-${{ matrix.switch }}-H-Uboot-112M-24.10
+          name: AX3000T-${{ matrix.switch }}-H-Uboot-112M-24.10.2
           path: output/
           if-no-files-found: error
           retention-days: 30
