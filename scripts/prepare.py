@@ -47,6 +47,7 @@ luci-app-ttyd luci-i18n-ttyd-zh-cn luci-compat luci-lua-runtime
 ca-bundle ca-certificates bash curl wget-ssl unzip openssh-sftp-server
 ip-full iptables-nft ip6tables-nft nftables-json ipset
 iptables-mod-tproxy iptables-mod-extra iptables-mod-socket
+kmod-ipt-nat kmod-ipt-nat6 kmod-ipt-conntrack kmod-mediatek_hnat
 kmod-tun kmod-nft-socket kmod-nft-tproxy kmod-nft-queue kmod-inet-diag
 kmod-netlink-diag coreutils coreutils-base64 libustream-openssl
 kmod-mt_wifi mtwifi-cfg luci-app-mtwifi-cfg luci-i18n-mtwifi-cfg-zh-cn'''.split()
