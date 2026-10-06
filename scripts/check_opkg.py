@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Run the firmware's opkg under QEMU/proot against the published signed feed."""
+import gzip
 import os
 import pathlib
 import re
@@ -63,7 +64,12 @@ with tempfile.TemporaryDirectory() as temporary:
     if not indexes:
         indexes = list((filesystem / 'tmp').rglob('ax3000t_custom'))
     assert indexes, 'opkg did not store a downloaded package index'
-    index = indexes[0].read_text()
+    index_bytes = indexes[0].read_bytes()
+    # opkg can keep the signed list compressed on disk.
+    if index_bytes.startswith(b'\x1f\x8b'):
+        index_bytes = gzip.decompress(index_bytes)
+    index = index_bytes.decode('utf-8')
+    assert 'Package: kmod-' in index, 'Downloaded index contains no kernel modules'
     expected = '6.6.133~a4123ef5a0c462947780a438299a4fb8-r1'
     for paragraph in index.split('\n\n'):
         if paragraph.startswith('Package: kmod-'):
