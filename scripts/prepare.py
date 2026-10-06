@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Derive switch-specific profiles from the audited 112 MiB upstream profile."""
 import pathlib
+import os
 import re
 import sys
 
@@ -58,17 +59,15 @@ radio = (root / 'defconfig/mt7981-ax3000.config').read_text().splitlines()
 config += [line for line in radio if re.match(r'(?:# )?CONFIG_(MTK_|CONNINFRA_|WARP_|WED_)', line)]
 config += [f'CONFIG_PACKAGE_{p}=y' for p in packages]
 config += ['# CONFIG_PACKAGE_luci-ssl is not set', '# CONFIG_PACKAGE_libustream-mbedtls is not set', '# CONFIG_PACKAGE_libustream-wolfssl is not set', '# CONFIG_PACKAGE_nftables-nojson is not set']
-# Version/feed correction only; retain the audited source, profiles and drivers.
-config += ['CONFIG_IMAGEOPT=y', 'CONFIG_VERSIONOPT=y', 'CONFIG_VERSION_DIST="ImmortalWrt"',
-           'CONFIG_VERSION_NUMBER="24.10.2"',
-           'CONFIG_VERSION_REPO="https://downloads.immortalwrt.org/releases/24.10.2"']
-repo = 'https://downloads.immortalwrt.org/releases/24.10.2'
-feed_paths = {'core': 'targets/mediatek/filogic/packages',
-              **{feed: f'packages/aarch64_cortex-a53/{feed}'
-                 for feed in ('base', 'luci', 'packages', 'routing', 'telephony')}}
+# Runtime packages must come from the same build, not a moving official feed.
+build_id = os.environ['FEED_BUILD_ID']
+assert re.fullmatch(r'build-[0-9]+-[0-9]+', build_id)
+repository = os.environ['GITHUB_REPOSITORY']
+assert repository == 'zhang6668yu-del/ax3000t-firmware'
+feed_url = f'https://raw.githubusercontent.com/{repository}/ipk-feeds/{build_id}/{variant}'
 feeds_file = root / 'files/etc/opkg/distfeeds.conf'
 feeds_file.parent.mkdir(parents=True, exist_ok=True)
-feeds_file.write_text(''.join(f'src/gz immortalwrt_{feed} {repo}/{path}\n'
-                              for feed, path in feed_paths.items()))
+feeds_file.write_text(f'src/gz ax3000t_custom {feed_url}\n')
 (root / '.config').write_text('\n'.join(config) + '\n')
 print(profile)
+

@@ -1,4 +1,4 @@
-name: AX3000T H-Uboot 112M 24.10.2 - MT7531 and AN8855
+name: AX3000T H-Uboot 112M - MT7531 and AN8855
 
 on:
   workflow_dispatch:
@@ -10,10 +10,10 @@ on:
     paths: ['.github/workflows/build-an8855.yml', 'scripts/**']
 
 permissions:
-  contents: read
+  contents: write
 concurrency:
   group: ax3000t-112m-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -24,13 +24,14 @@ jobs:
         switch: [mt7531, an8855]
     env:
       SOURCE_SHA: ec9ef10efc65da1e6d1de4e2c043c0e13d08eed8
+      FEED_BUILD_ID: build-${{ github.run_id }}-${{ github.run_attempt }}
       PROFILE: xiaomi_mi-router-ax3000t-${{ matrix.switch }}-mtkuboot
     steps:
       - uses: actions/checkout@v4
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib gettext git libncurses-dev libssl-dev python3 python3-pyelftools rsync unzip zlib1g-dev file wget curl jq qemu-utils ccache xsltproc libelf-dev swig time
+          sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib gettext git libncurses-dev libssl-dev python3 python3-pyelftools rsync unzip zlib1g-dev file wget curl jq qemu-utils ccache xsltproc libelf-dev swig time qemu-user-static proot
           df -h
       - name: Clone pinned ImmortalWrt 24.10 source
         run: |
@@ -41,6 +42,7 @@ jobs:
       - name: Update feeds
         working-directory: openwrt
         run: |
+          cp ../scripts/feeds.lock.conf feeds.conf
           ./scripts/feeds update -a
           ./scripts/feeds install -a
       - name: Prepare separate switch profile and clean configuration
@@ -60,15 +62,6 @@ jobs:
           grep -E '^CONFIG_TARGET_|^CONFIG_PACKAGE_(luci-ssl|libustream|kmod-nft|kmod-tun|kmod-inet|nftables)' openwrt/.config || true
           # Target selection is essential. Package resolution is shown above.
           grep -qx "CONFIG_TARGET_mediatek_filogic_DEVICE_${PROFILE}=y" openwrt/.config
-      - name: Verify official 24.10.2 feed indexes
-        run: |
-          set -o pipefail
-          repo=https://downloads.immortalwrt.org/releases/24.10.2
-          for path in targets/mediatek/filogic/packages packages/aarch64_cortex-a53/{base,luci,packages,routing,telephony}; do
-            curl -fLsS --retry 3 --retry-all-errors "$repo/$path/Packages.gz" | gzip -t
-            curl -fLsS --retry 3 --retry-all-errors "$repo/$path/Packages.sig" -o /dev/null
-            echo "Feed index available: $repo/$path"
-          done
       - name: Download sources
         working-directory: openwrt
         run: make download -j8
@@ -77,13 +70,28 @@ jobs:
         run: |
           set -o pipefail
           make -j$(nproc) V=s 2>&1 | tee ../build.log || make -j1 V=s 2>&1 | tee -a ../build.log
+      - name: Publish matching signed IPK repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/package_repo.py openwrt '${{ matrix.switch }}'
+      - name: Test packaged opkg against the online repository
+        run: |
+          set -o pipefail
+          python3 scripts/check_opkg.py openwrt '${{ matrix.switch }}' 2>&1 | tee opkg-check.log
       - name: Collect and audit firmware
         run: python3 scripts/collect.py openwrt '${{ matrix.switch }}'
       - name: Upload firmware
         uses: actions/upload-artifact@v4
         with:
-          name: AX3000T-${{ matrix.switch }}-H-Uboot-112M-24.10.2
+          name: AX3000T-${{ matrix.switch }}-H-Uboot-112M-24.10
           path: output/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload matching package repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ matrix.switch }}-${{ github.run_id }}
+          path: package-repository/
           if-no-files-found: error
           retention-days: 30
       - name: Upload build diagnostics
@@ -94,4 +102,6 @@ jobs:
           path: |
             audit/
             build.log
+            opkg-check.log
           retention-days: 14
+
