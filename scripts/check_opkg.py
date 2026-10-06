@@ -45,7 +45,10 @@ with tempfile.TemporaryDirectory() as temporary:
     (filesystem / 'tmp').mkdir(exist_ok=True)
     command = ['proot', '-0', '-q', '/usr/bin/qemu-aarch64-static', '-r', str(filesystem),
                '-b', '/etc/resolv.conf:/etc/resolv.conf', '-b', '/dev', '-b', '/proc',
-               '-w', '/', '/bin/sh', '-c', 'cat /etc/opkg/distfeeds.conf; opkg update']
+               '-w', '/', '/bin/sh', '-c',
+               # /etc/init.d/boot creates this on a running router; no init runs in proot.
+               'mkdir -p /var/lock /var/opkg-lists && chmod 1777 /var/lock && '
+               'cat /etc/opkg/distfeeds.conf && opkg update']
     result = subprocess.run(command, text=True, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, timeout=240)
     print(result.stdout, flush=True)
