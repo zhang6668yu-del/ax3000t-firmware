@@ -20,8 +20,6 @@ define Device/{profile}
   DEVICE_VENDOR := Xiaomi
   DEVICE_MODEL := Mi Router AX3000T
   DEVICE_VARIANT := ({variant.upper()}, H-Uboot 112M)
-  BOARD_NAME := {compat_name}
-  SUPPORTED_DEVICES := {compat_name} {profile}
   DEVICE_DTS := mt7981b-{profile.replace("_", "-")}
   DEVICE_DTS_DIR := ../dts
   UBINIZE_OPTS := -E 5
@@ -29,6 +27,7 @@ define Device/{profile}
   PAGESIZE := 2048
   IMAGE_SIZE := 114688k
   KERNEL_IN_UBI := 1
+  SUPPORTED_DEVICES := {compat_name}
   DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware
   IMAGES += factory.bin
   IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
