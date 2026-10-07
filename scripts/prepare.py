@@ -20,6 +20,8 @@ define Device/{profile}
   DEVICE_VENDOR := Xiaomi
   DEVICE_MODEL := Mi Router AX3000T
   DEVICE_VARIANT := ({variant.upper()}, H-Uboot 112M)
+  BOARD_NAME := {compat_name}
+  SUPPORTED_DEVICES := {compat_name} {profile}
   DEVICE_DTS := mt7981b-{profile.replace("_", "-")}
   DEVICE_DTS_DIR := ../dts
   UBINIZE_OPTS := -E 5

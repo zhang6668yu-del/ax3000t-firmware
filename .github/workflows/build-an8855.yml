@@ -64,12 +64,12 @@ jobs:
         run: |
           set -o pipefail
           make -j$(nproc) V=s 2>&1 | tee ../build.log || make -j1 V=s 2>&1 | tee -a ../build.log
+      - name: Collect firmware
+        run: python3 scripts/collect.py openwrt '${{ matrix.switch }}'
       - name: Audit firmware and verify official opkg feeds
         run: |
           set -o pipefail
           python3 scripts/check_firmware.py openwrt '${{ matrix.switch }}' 2>&1 | tee audit.log
-      - name: Collect and audit firmware
-        run: python3 scripts/collect.py openwrt '${{ matrix.switch }}'
       - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:
