@@ -27,7 +27,7 @@ define Device/{profile}
   PAGESIZE := 2048
   IMAGE_SIZE := 114688k
   KERNEL_IN_UBI := 1
-  SUPPORTED_DEVICES := {compat_name}
+  SUPPORTED_DEVICES := {compat_name} xiaomi,mi-router-ax3000t-mtkuboot xiaomi,mi-router-ax3000t-an8855-mtkuboot xiaomi,mi-router-ax3000t xiaomi,mi-router-ax3000t-ubootmod
   DEVICE_PACKAGES := kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware
   IMAGES += factory.bin
   IMAGE/factory.bin := append-ubi | check-size $$$$(IMAGE_SIZE)
@@ -91,8 +91,32 @@ for relative in (
         content = content.replace(anchor, patch_line + anchor)
         target_file.write_text(content)
 
-# 4. Configure .config for build
+# 4. Patch platform.sh for robust 112M UBI sysupgrade handling
+platform_sh = root / 'target/linux/mediatek/filogic/base-files/lib/upgrade/platform.sh'
+if platform_sh.is_file():
+    platform_content = platform_sh.read_text()
+    mtkuboot_case = """\txiaomi,mi-router-ax3000t-mtkuboot|\\
+\txiaomi,mi-router-ax3000t-an8855-mtkuboot)
+\t\tCI_UBIPART="ubi"
+\t\tCI_KERNPART="kernel"
+\t\tCI_ROOTPART="rootfs"
+\t\tnand_do_upgrade "$1"
+\t\t;;
+"""
+    anchor = '\txiaomi,mi-router-ax3000t|\\\n\txiaomi,mi-router-wr30u-stock|'
+    if 'xiaomi,mi-router-ax3000t-an8855-mtkuboot' not in platform_content:
+        if anchor in platform_content:
+            platform_content = platform_content.replace(anchor, mtkuboot_case + anchor)
+        else:
+            default_anchor = '\t*)\n\t\tnand_do_upgrade "$1"'
+            assert default_anchor in platform_content, "Default anchor not found in platform.sh"
+            platform_content = platform_content.replace(default_anchor, mtkuboot_case + default_anchor)
+        platform_sh.write_text(platform_content)
+        print("Patched platform.sh for 112M UBI sysupgrade")
+
+# 5. Configure .config for build
 packages = '''
+ethtool
 luci
 luci-ssl-openssl
 luci-i18n-base-zh-cn
