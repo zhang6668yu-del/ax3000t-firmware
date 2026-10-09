@@ -3,6 +3,7 @@ import json
 import pathlib
 import struct
 import sys
+import zlib
 from fdtlib import parse, build
 
 base = pathlib.Path(sys.argv[1])
@@ -27,6 +28,34 @@ for path in matches:
     assert parse(result)[0] == dt
     path.write_bytes(result)
     changed.append({'path':str(path.relative_to(base)), 'old_sha256':hashlib.sha256(data).hexdigest(), 'new_sha256':hashlib.sha256(result).hexdigest()})
+
+# ImageBuilder ships a ready-made FIT kernel; changing the loose DTB alone
+# does not rebuild that FIT. Replace its embedded DTB and update every hash.
+fits_changed = []
+for path in base.rglob('*xiaomi_mi-router-ax3000t*'):
+    if not path.is_file() or path.suffix not in ('.bin', '.itb'):
+        continue
+    payload = path.read_bytes()
+    if payload[:4] != b'\xd0\x0d\xfe\xed':
+        continue
+    fit, fr, fc = parse(payload)
+    if '/images/fdt-1' not in fit:
+        continue
+    embedded = fit['/images/fdt-1']['data']
+    assert hashlib.sha256(embedded).hexdigest() in {c['old_sha256'] for c in changed}, str(path)
+    original_kernel = fit['/images/kernel-1']['data']
+    fit['/images/fdt-1']['data'] = result
+    for name, props in fit.items():
+        if name.startswith('/images/fdt-1/') and 'algo' in props:
+            algo = props['algo'].rstrip(b'\0').decode()
+            props['value'] = struct.pack('>I', zlib.crc32(result)) if algo == 'crc32' else hashlib.new(algo, result).digest()
+    rebuilt = build(fit, fr, fc)
+    assert parse(rebuilt)[0] == fit
+    assert parse(rebuilt)[0]['/images/kernel-1']['data'] == original_kernel
+    path.write_bytes(rebuilt)
+    fits_changed.append(str(path.relative_to(base)))
+assert fits_changed, 'Prebuilt FIT was not found; refusing an unmodified stock kernel'
+print('Patched prebuilt FIT files:', fits_changed)
 
 path = base/'target/linux/mediatek/image/filogic.mk'
 text = path.read_text()

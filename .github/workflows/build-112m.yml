@@ -37,6 +37,9 @@ jobs:
           curl --fail --location --retry 3 -o imagebuilder/keys/openwrt-passwall-build.pem https://master.dl.sourceforge.net/project/openwrt-passwall-build/apk.pub
           echo '52802b143489214e13b78f96599a147a638205cc22d9dd6d71229504e38ddc00  imagebuilder/keys/openwrt-passwall-build.pem' | sha256sum -c -
           echo 'https://master.dl.sourceforge.net/project/openwrt-passwall-build/releases/packages-25.12/aarch64_cortex-a53/passwall_packages/packages.adb' >> imagebuilder/repositories
+          mkdir -p files-112m/etc/apk/keys files-112m/etc/apk/repositories.d
+          cp imagebuilder/keys/openwrt-passwall-build.pem files-112m/etc/apk/keys/
+          printf '%s\n' 'https://master.dl.sourceforge.net/project/openwrt-passwall-build/releases/packages-25.12/aarch64_cortex-a53/passwall_packages/packages.adb' 'https://master.dl.sourceforge.net/project/openwrt-passwall-build/releases/packages-25.12/aarch64_cortex-a53/passwall_luci/packages.adb' > files-112m/etc/apk/repositories.d/passwall.list
       - name: Build firmware with proxy runtime dependencies
         working-directory: imagebuilder
         run: |
@@ -45,6 +48,9 @@ jobs:
         run: |
           mkdir delivery
           python3 scripts/verify_112m.py imagebuilder/bin/targets/mediatek/filogic delivery
+      - name: Verify shipped repositories and Sing-box PassWall dependency resolution
+        run: |
+          python3 scripts/check_runtime_repos.py imagebuilder delivery
       - name: Upload verified images and audit
         uses: actions/upload-artifact@v4
         with:
