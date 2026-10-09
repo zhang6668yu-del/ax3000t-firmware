@@ -62,12 +62,17 @@ for offset in range(0, len(ubi), 131072):
     assert block[:4] == b'UBI#'
     vid, dataoff = struct.unpack_from('>II', block, 16)
     assert vid == 2048 and dataoff == 4096
+    # ubinize -E adds erased reserve PEBs with only an EC header.
+    if block[vid:vid+4] == b'\xff'*4:
+        assert block[vid:] == b'\xff'*(len(block)-vid)
+        continue
     assert block[vid:vid+4] == b'UBI!'
     volume, lnum = struct.unpack_from('>II', block, vid+8)
     volumes.setdefault(volume,{})[lnum] = block[dataoff:]
 contents = {v:b''.join(parts[i] for i in sorted(parts)) for v,parts in volumes.items()}
 assert contents[0][:len(kernel)] == kernel
-assert contents[1][:len(root)] == root
+root_used = struct.unpack_from('<Q', root, 40)[0]
+assert contents[1][:root_used] == root[:root_used]
 manifest, = source.glob('*xiaomi_mi-router-ax3000t.manifest')
 packages = {line.split(' - ',1)[0] for line in manifest.read_text().splitlines()}
 required = set('dnsmasq-full luci-compat ruby ruby-yaml kmod-inet-diag kmod-tun kmod-nft-tproxy kmod-nft-socket kmod-nft-nat ip-full bash curl ca-bundle unzip coreutils-base64 coreutils-nohup coreutils-timeout chinadns-ng dns2socks microsocks resolveip tcping ipt2socks libuci-lua lua luci-lib-jsonc lyaml'.split())
