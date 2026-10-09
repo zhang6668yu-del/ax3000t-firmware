@@ -1,0 +1,49 @@
+name: AX3000T OpenWrt 25.12.0 verified 34+78 layout
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/ax3000t-verified-layout]
+    paths:
+      - '.github/workflows/build-stock-layout.yml'
+      - 'scripts/verify_image.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ax3000t-verified-layout
+  cancel-in-progress: false
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install host tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libncurses-dev libssl-dev zlib1g-dev gawk gettext unzip rsync wget file python3 zstd squashfs-tools
+      - name: Download pinned official ImageBuilder
+        run: |
+          curl --fail --location --retry 3 -o imagebuilder.tar.zst https://downloads.openwrt.org/releases/25.12.0/targets/mediatek/filogic/openwrt-imagebuilder-25.12.0-mediatek-filogic.Linux-x86_64.tar.zst
+          echo 'f21f651fa70b94317fa53531212136541fea03a52226ecd92c8ee900a7ff6daf  imagebuilder.tar.zst' | sha256sum -c -
+          mkdir imagebuilder
+          tar --zstd -xf imagebuilder.tar.zst -C imagebuilder --strip-components=1
+          rm imagebuilder.tar.zst
+      - name: Build official AX3000T profile with Chinese LuCI
+        working-directory: imagebuilder
+        run: |
+          make image PROFILE=xiaomi_mi-router-ax3000t PACKAGES="luci luci-ssl luci-i18n-base-zh-cn luci-app-ttyd luci-i18n-ttyd-zh-cn ca-bundle ca-certificates bash curl wget-ssl unzip openssh-sftp-server ip-full kmod-tun kmod-nft-socket kmod-nft-tproxy coreutils-base64"
+      - name: Verify actual firmware and root filesystem
+        run: |
+          mkdir -p delivery
+          python3 scripts/verify_image.py imagebuilder/bin/targets/mediatek/filogic delivery
+      - name: Upload checked firmware and evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: AX3000T-OpenWrt-25.12.0-34plus78-AN8855
+          if-no-files-found: error
+          retention-days: 30
+          path: delivery/
