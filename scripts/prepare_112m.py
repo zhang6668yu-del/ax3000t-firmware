@@ -33,6 +33,8 @@ for path in matches:
 # does not rebuild that FIT. Replace its embedded DTB and update every hash.
 fits_changed = []
 for path in base.rglob('*xiaomi_mi-router-ax3000t*'):
+    if '-ax3000t-ubootmod' in path.name:
+        continue
     if not path.is_file() or path.suffix not in ('.bin', '.itb'):
         continue
     payload = path.read_bytes()
@@ -42,6 +44,9 @@ for path in base.rglob('*xiaomi_mi-router-ax3000t*'):
     if '/images/fdt-1' not in fit:
         continue
     embedded = fit['/images/fdt-1']['data']
+    if embedded == result:
+        fits_changed.append(str(path.relative_to(base)))
+        continue
     assert hashlib.sha256(embedded).hexdigest() in {c['old_sha256'] for c in changed}, str(path)
     original_kernel = fit['/images/kernel-1']['data']
     fit['/images/fdt-1']['data'] = result
