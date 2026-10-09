@@ -1,0 +1,32 @@
+name: AX3000T 25.12.5 read-only RAM test image
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/ax3000t-112m]
+    paths: ['.github/workflows/ram-test.yml', 'ram-test/**']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  ram:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: AX3000T-25.12.5-H-Uboot-112M-ProxyDependencies
+          run-id: 37948634836
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: input
+      - name: Install image extraction tools
+        run: sudo apt-get update && sudo apt-get install -y squashfs-tools cpio
+      - name: Build full-root RAM test image
+        run: |
+          mkdir delivery
+          sudo python3 ram-test/make_ram.py input delivery
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AX3000T-25.12.5-112M-readonly-RAM-test
+          if-no-files-found: error
+          path: delivery/
