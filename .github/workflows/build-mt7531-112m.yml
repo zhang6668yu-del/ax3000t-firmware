@@ -1,0 +1,61 @@
+name: AX3000T MT7531 112 MiB OpenWrt 25.12.5 proxy dependencies
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/ax3000t-mt7531-112m]
+    paths: ['.github/workflows/build-mt7531-112m.yml', 'scripts/**', 'files-112m/**']
+permissions:
+  contents: read
+concurrency:
+  group: ax3000t-mt7531-112m
+  cancel-in-progress: false
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install host tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libncurses-dev libssl-dev zlib1g-dev gawk gettext unzip rsync wget file python3 zstd squashfs-tools
+      - name: Download and verify official ImageBuilder 25.12.5
+        run: |
+          curl --fail --location --retry 3 -o imagebuilder.tar.zst https://downloads.openwrt.org/releases/25.12.5/targets/mediatek/filogic/openwrt-imagebuilder-25.12.5-mediatek-filogic.Linux-x86_64.tar.zst
+          echo '7fb6cf626582ebcbfb46974da48c1eae577213f38879eaf6b1d982041e843461  imagebuilder.tar.zst' | sha256sum -c -
+          mkdir imagebuilder
+          tar --zstd -xf imagebuilder.tar.zst -C imagebuilder --strip-components=1
+          rm imagebuilder.tar.zst
+      - name: Prepare guarded single-UBI profile
+        run: |
+          python3 scripts/prepare_112m.py imagebuilder
+          chmod +x files-112m/etc/board.d/99-ax3000t-h112m
+          sh -n files-112m/lib/upgrade/platform.sh
+          sh -n files-112m/etc/board.d/99-ax3000t-h112m
+      - name: Add upstream PassWall release dependency repository
+        run: |
+          curl --fail --location --retry 3 -o imagebuilder/keys/openwrt-passwall-build.pem https://master.dl.sourceforge.net/project/openwrt-passwall-build/apk.pub
+          echo '52802b143489214e13b78f96599a147a638205cc22d9dd6d71229504e38ddc00  imagebuilder/keys/openwrt-passwall-build.pem' | sha256sum -c -
+          echo 'https://master.dl.sourceforge.net/project/openwrt-passwall-build/releases/packages-25.12/aarch64_cortex-a53/passwall_packages/packages.adb' >> imagebuilder/repositories
+          mkdir -p files-112m/etc/apk/keys files-112m/etc/apk/repositories.d
+          cp imagebuilder/keys/openwrt-passwall-build.pem files-112m/etc/apk/keys/
+          printf '%s\n' 'https://master.dl.sourceforge.net/project/openwrt-passwall-build/releases/packages-25.12/aarch64_cortex-a53/passwall_packages/packages.adb' 'https://master.dl.sourceforge.net/project/openwrt-passwall-build/releases/packages-25.12/aarch64_cortex-a53/passwall_luci/packages.adb' > files-112m/etc/apk/repositories.d/passwall.list
+      - name: Build firmware with proxy runtime dependencies
+        working-directory: imagebuilder
+        run: |
+          make image PROFILE=xiaomi_mi-router-ax3000t FILES="${GITHUB_WORKSPACE}/files-112m" PACKAGES="-dnsmasq dnsmasq-full luci luci-ssl luci-i18n-base-zh-cn luci-compat luci-lib-jsonc luci-app-ttyd luci-i18n-ttyd-zh-cn ca-bundle ca-certificates bash curl wget-ssl unzip openssh-sftp-server ip-full kmod-tun kmod-inet-diag kmod-nft-socket kmod-nft-tproxy kmod-nft-nat coreutils-base64 coreutils-nohup coreutils-timeout ruby ruby-yaml libuci-lua lua lyaml chinadns-ng dns2socks resolveip tcping"
+      - name: Verify 112 MiB factory and sysupgrade images
+        run: |
+          mkdir delivery
+          cp README-MT7531-112M.md delivery/
+          python3 scripts/verify_mt7531_112m.py imagebuilder/bin/targets/mediatek/filogic delivery
+      - name: Verify shipped repositories and Sing-box PassWall dependency resolution
+        run: |
+          python3 scripts/check_runtime_repos.py imagebuilder delivery
+      - name: Upload verified images and audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: AX3000T-MT7531-25.12.5-H-Uboot-112M-ProxyDependencies
+          if-no-files-found: error
+          retention-days: 30
+          path: delivery/
