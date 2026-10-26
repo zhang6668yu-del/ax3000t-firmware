@@ -6,6 +6,7 @@ on:
     paths: ['.github/workflows/build-mt7531-112m-minimal.yml', 'scripts/**', 'files-112m/**']
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: ax3000t-mt7531-112m
   cancel-in-progress: false
@@ -15,6 +16,13 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - name: Download previous successful firmware to preserve retained package versions
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: 38070686922
+          name: AX3000T-MT7531-25.12.5-H-Uboot-112M-ProxyDependencies
+          path: previous-firmware
       - name: Install host tools
         run: |
           sudo apt-get update
@@ -44,9 +52,13 @@ jobs:
         working-directory: imagebuilder
         run: |
           make image PROFILE=xiaomi_mi-router-ax3000t FILES="${GITHUB_WORKSPACE}/files-112m" PACKAGES="-dnsmasq dnsmasq-full luci luci-ssl luci-i18n-base-zh-cn luci-app-ttyd luci-i18n-ttyd-zh-cn ca-bundle ca-certificates bash curl wget-ssl unzip openssh-sftp-server ip-full kmod-tun kmod-inet-diag kmod-nft-socket kmod-nft-tproxy kmod-nft-nat"
+      - name: Prune only optional dependencies from original firmware rootfs
+        run: |
+          python3 scripts/prune_previous_rootfs.py imagebuilder previous-firmware
       - name: Verify 112 MiB factory and sysupgrade images
         run: |
           mkdir delivery
+          cp imagebuilder/previous-root-prune-audit.json delivery/
           python3 scripts/verify_mt7531_112m.py imagebuilder/bin/targets/mediatek/filogic delivery
       - name: Verify shipped repositories and Sing-box PassWall dependency resolution
         run: |
