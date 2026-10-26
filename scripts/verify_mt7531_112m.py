@@ -81,14 +81,16 @@ root_used = struct.unpack_from('<Q', root, 40)[0]
 assert contents[1][:root_used] == root[:root_used]
 manifest, = source.glob('*xiaomi_mi-router-ax3000t.manifest')
 packages = {line.split(' - ',1)[0] for line in manifest.read_text().splitlines()}
-required = set('dnsmasq-full luci-compat ruby ruby-yaml kmod-inet-diag kmod-tun kmod-nft-tproxy kmod-nft-socket kmod-nft-nat ip-full bash curl ca-bundle unzip coreutils-base64 coreutils-nohup coreutils-timeout chinadns-ng dns2socks resolveip tcping libuci-lua lua luci-lib-jsonc lyaml'.split())
+required = set('dnsmasq-full kmod-inet-diag kmod-tun kmod-nft-tproxy kmod-nft-socket kmod-nft-nat ip-full bash curl ca-bundle unzip'.split())
 assert required <= packages, sorted(required-packages)
 assert 'dnsmasq' not in packages
+assert not set('ruby ruby-yaml lyaml chinadns-ng dns2socks microsocks tcping ipt2socks'.split()) & packages
+assert hashlib.sha256(kernel).hexdigest() == 'ac512b799f1fac8e0ad0f364e4161a8bc8890c02a6a3d1ece697f2f89cc81ae5', 'Kernel/DTB differs from previous successful 112M build'
 assert not {'xray-core','sing-box','luci-app-passwall','luci-app-openclash'} & packages
 output.mkdir(parents=True, exist_ok=True)
 hashes = {}
 for original, kind in [(image,'sysupgrade'),(factory,'factory')]:
-    name = 'AX3000T-MT7531-H-Uboot-112M-OpenWrt-25.12.5-deps-'+kind+'.bin'
+    name = 'AX3000T-MT7531-H-Uboot-112M-OpenWrt-25.12.5-minimal-'+kind+'.bin'
     shutil.copy2(original, output/name)
     hashes[name] = hashlib.sha256(original.read_bytes()).hexdigest()
 shutil.copy2(manifest, output/'packages.manifest')

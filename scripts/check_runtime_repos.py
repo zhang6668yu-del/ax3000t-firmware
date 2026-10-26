@@ -24,7 +24,7 @@ with tempfile.TemporaryDirectory() as tmp:
     # --simulate checks resolution without installing or running target scripts.
     command = [str(apk),'--root',str(root),'--arch','aarch64_cortex-a53','--keys-dir',str(root/'etc/apk/keys'),'--repositories-file',str(repo)]
     results = []
-    for arguments in [['update'], ['add','--simulate','sing-box'], ['add','--simulate','luci-app-passwall']]:
+    for arguments in [['update'], ['add','--simulate','sing-box'], ['add','--simulate','luci-app-passwall'], ['add','--simulate','ruby','ruby-yaml','luci-compat','luci-lib-jsonc','lyaml']]:
         run = subprocess.run(command+arguments, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         results.append({'arguments':arguments,'exit_code':run.returncode,'output':run.stdout})
         print(run.stdout, flush=True)

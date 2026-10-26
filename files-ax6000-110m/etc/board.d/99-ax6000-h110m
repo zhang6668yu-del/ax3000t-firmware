@@ -1,0 +1,6 @@
+#!/bin/sh
+. /lib/functions/uci-defaults.sh
+board_config_update
+ucidef_set_compat_version "2.0"
+board_config_flush
+exit 0
