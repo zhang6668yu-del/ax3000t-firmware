@@ -19,7 +19,11 @@ assert root.is_relative_to(base/'build_dir')
 shutil.rmtree(root)
 raw = base/'previous-root.squashfs'
 raw.write_bytes(squashfs)
-subprocess.run(['unsquashfs', '-d', str(root), str(raw)], check=True)
+unpack = subprocess.run(['unsquashfs', '-d', str(root), str(raw)], stderr=subprocess.PIPE, text=True)
+if unpack.returncode:
+    errors = [line for line in unpack.stderr.splitlines() if line.strip()]
+    assert unpack.returncode == 2 and len(errors) == 1 and 'could not create character device ' + str(root/'dev/console') in errors[0], unpack.stderr
+    print('The unprivileged extractor omitted dev/console; ImageBuilder recreates that device with its standard pseudo-file definition.')
 raw.unlink()
 
 def fingerprints():
@@ -34,7 +38,8 @@ subprocess.run(command + ['del', '--no-scripts'] + sorted(removed & baseline.key
 after = fingerprints()
 changed = {p for p in before.keys() & after.keys() if before[p] != after[p]}
 assert all(p == 'etc/apk/world' or p.startswith(('lib/apk/db/', 'usr/lib/apk/db/')) for p in changed), changed
-assert not (after.keys() - before.keys()), sorted(after.keys() - before.keys())
+added = after.keys() - before.keys()
+assert all(p.startswith(('lib/apk/db/', 'usr/lib/apk/db/')) for p in added), sorted(added)
 text = subprocess.check_output(command + ['list', '--quiet', '--manifest'], text=True)
 installed = dict(line.split(' ', 1) for line in text.splitlines())
 assert not (installed.keys() - baseline.keys())
