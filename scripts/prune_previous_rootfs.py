@@ -35,6 +35,9 @@ apk = base/'staging_dir/host/bin/apk'
 command = [str(apk), '--root', str(root), '--arch', 'aarch64_cortex-a53', '--no-network', '--repositories-file', '/dev/null']
 removed = set('luci-compat luci-lib-jsonc coreutils-base64 coreutils-nohup coreutils-timeout ruby ruby-yaml libuci-lua lua lyaml chinadns-ng dns2socks microsocks resolveip tcping ipt2socks'.split())
 subprocess.run(command + ['del', '--no-scripts'] + sorted(removed & baseline.keys()), check=True)
+install_log = root/'tmp/log/apk.log'
+if 'tmp/log/apk.log' not in before and install_log.is_file():
+    install_log.unlink()
 after = fingerprints()
 changed = {p for p in before.keys() & after.keys() if before[p] != after[p]}
 assert all(p == 'etc/apk/world' or p.startswith(('lib/apk/db/', 'usr/lib/apk/db/')) for p in changed), changed
