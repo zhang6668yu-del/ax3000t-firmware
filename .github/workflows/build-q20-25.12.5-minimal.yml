@@ -1,0 +1,49 @@
+name: JCG Q20 OpenWrt 25.12.5 minimal kernel dependencies
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/router-minimal-20261026]
+    paths: ['.github/workflows/build-q20-25.12.5-minimal.yml']
+permissions:
+  contents: read
+concurrency:
+  group: jcg-q20
+  cancel-in-progress: false
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install host tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libncurses-dev libssl-dev zlib1g-dev gawk gettext unzip rsync wget file python3 zstd squashfs-tools
+      - name: Download and verify official ImageBuilder 25.12.5
+        run: |
+          curl --fail --location --retry 3 -o imagebuilder.tar.zst https://downloads.openwrt.org/releases/25.12.5/targets/ramips/mt7621/openwrt-imagebuilder-25.12.5-ramips-mt7621.Linux-x86_64.tar.zst
+          mkdir imagebuilder
+          tar --zstd -xf imagebuilder.tar.zst -C imagebuilder --strip-components=1
+          rm imagebuilder.tar.zst
+      - name: Add upstream PassWall release dependency repository and arch fix
+        run: |
+          curl --fail --location --retry 3 -o imagebuilder/keys/openwrt-passwall-build.pem https://master.dl.sourceforge.net/project/openwrt-passwall-build/apk.pub
+          echo 'https://master.dl.sourceforge.net/project/openwrt-passwall-build/releases/packages-25.12/mipsel_24kc/passwall_packages/packages.adb' >> imagebuilder/repositories
+          mkdir -p files-q20/etc/apk/keys files-q20/etc/apk/repositories.d
+          cp imagebuilder/keys/openwrt-passwall-build.pem files-q20/etc/apk/keys/
+          printf '%s\n' 'https://master.dl.sourceforge.net/project/openwrt-passwall-build/releases/packages-25.12/mipsel_24kc/passwall_packages/packages.adb' 'https://master.dl.sourceforge.net/project/openwrt-passwall-build/releases/packages-25.12/mipsel_24kc/passwall_luci/packages.adb' > files-q20/etc/apk/repositories.d/passwall.list
+          printf '%s\n' 'mipsel_24kc' 'all' > files-q20/etc/apk/arch
+      - name: Build firmware with minimal kernel dependencies
+        working-directory: imagebuilder
+        run: |
+          make image PROFILE=jcg_q20 FILES="${GITHUB_WORKSPACE}/files-q20" PACKAGES="-dnsmasq dnsmasq-full luci luci-ssl luci-i18n-base-zh-cn luci-app-ttyd luci-i18n-ttyd-zh-cn ca-bundle ca-certificates bash curl wget-ssl unzip openssh-sftp-server ip-full kmod-tun kmod-inet-diag kmod-nft-socket kmod-nft-tproxy kmod-nft-nat"
+      - name: Upload verified images
+        uses: actions/upload-artifact@v4
+        with:
+          name: JCG-Q20-25.12.5-MinimalKernelDependencies
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            imagebuilder/bin/targets/ramips/mt7621/*q20*sysupgrade.bin
+            imagebuilder/bin/targets/ramips/mt7621/*q20*initramfs*
+            imagebuilder/bin/targets/ramips/mt7621/sha256sums
