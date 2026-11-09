@@ -1,4 +1,4 @@
-https://mirrors.tuna.tsinghua.edu.cn/openwrt/releases/25.12.5/targets/mediatek/filogic/packages
-https://mirrors.tuna.tsinghua.edu.cn/openwrt/releases/25.12.5/packages/aarch64_cortex-a53/base
-https://mirrors.tuna.tsinghua.edu.cn/openwrt/releases/25.12.5/packages/aarch64_cortex-a53/luci
-https://mirrors.tuna.tsinghua.edu.cn/openwrt/releases/25.12.5/packages/aarch64_cortex-a53/packages
+https://mirrors.tuna.tsinghua.edu.cn/openwrt/releases/25.12.5/targets/mediatek/filogic/packages/packages.adb
+https://mirrors.tuna.tsinghua.edu.cn/openwrt/releases/25.12.5/packages/aarch64_cortex-a53/base/packages.adb
+https://mirrors.tuna.tsinghua.edu.cn/openwrt/releases/25.12.5/packages/aarch64_cortex-a53/luci/packages.adb
+https://mirrors.tuna.tsinghua.edu.cn/openwrt/releases/25.12.5/packages/aarch64_cortex-a53/packages/packages.adb
