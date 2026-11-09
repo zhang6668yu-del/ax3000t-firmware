@@ -1,0 +1,57 @@
+name: Publish Compiled Firmware Release
+on:
+  workflow_dispatch:
+  push:
+    paths: ['.github/workflows/publish-release.yml']
+permissions:
+  contents: write
+  actions: read
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download AX3000T AN8855 Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: AX3000T-25.12.5-H-Uboot-112M-MinimalKernelDependencies
+          run-id: 42622426680
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: release-firmware
+      - name: Download AX3000T MT7531 Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: AX3000T-MT7531-25.12.5-H-Uboot-112M-MinimalKernelDependencies
+          run-id: 42622426752
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: release-firmware
+      - name: Download Redmi AX6000 Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Redmi-AX6000-25.12.5-H-Uboot-110M-MinimalKernelDependencies
+          run-id: 42622426631
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: release-firmware
+      - name: Download JCG Q20 Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: JCG-Q20-25.12.5-MinimalKernelDependencies
+          run-id: 42622426683
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: release-firmware
+      - name: Inspect files
+        run: |
+          ls -la release-firmware/
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v25.12.5-m3e-minimal
+          name: OpenWrt 25.12.5 M3E Minimal Firmware (AX3000T / AX6000 / Q20)
+          files: release-firmware/*
+          body: |
+            OpenWrt 25.12.5 minimal firmware collection with Material 3 Expressive theme and clean official software feeds.
+            - Xiaomi AX3000T (AN8855 switch) H-Uboot 112M
+            - Xiaomi AX3000T (MT7531 switch) H-Uboot 112M
+            - Redmi AX6000 H-Uboot 110M
+            - JCG Q20 (MT7621)
