@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [codex/router-minimal-20261026]
-    paths: ['.github/workflows/build-q20-25.12.5-minimal.yml', 'files-q20/**']
+    paths: ['.github/workflows/build-q20-25.12.5-minimal.yml', 'files-q20/**', 'scripts/**']
 permissions:
   contents: read
 concurrency:
@@ -29,6 +29,28 @@ jobs:
         working-directory: imagebuilder
         run: |
           make image PROFILE=jcg_q20 FILES="${GITHUB_WORKSPACE}/files-q20" PACKAGES="-dnsmasq dnsmasq-full luci luci-ssl luci-i18n-base-zh-cn luci-app-ttyd luci-i18n-ttyd-zh-cn ca-bundle ca-certificates bash curl wget-ssl unzip openssh-sftp-server ip-full kmod-tun kmod-inet-diag kmod-nft-socket kmod-nft-tproxy kmod-nft-nat"
+      - name: Verify Q20 kernel modules and repositories
+        run: |
+          python3 - <<'EOF'
+          import pathlib
+          d = pathlib.Path('imagebuilder/bin/targets/ramips/mt7621')
+          m, = d.glob('*jcg_q20.manifest')
+          pk = {l.split(' - ',1)[0] for l in m.read_text().splitlines()}
+          need = set('kmod-mt7915e kmod-mt7915-firmware wpad-basic-mbedtls kmod-nft-offload dnsmasq-full kmod-inet-diag kmod-tun kmod-nft-tproxy kmod-nft-socket kmod-nft-nat ip-full bash curl ca-bundle unzip'.split())
+          assert need <= pk, sorted(need - pk)
+          assert 'dnsmasq' not in pk
+          assert not {'xray-core','sing-box','luci-app-passwall','luci-app-openclash'} & pk
+          root, = [p.parent.parent for p in pathlib.Path('imagebuilder').glob('build_dir/target-*/root-*/etc/openwrt_release')]
+          lines = []
+          for f in [root/'etc/apk/repositories', *sorted((root/'etc/apk/repositories.d').glob('*'))]:
+              if f.is_file():
+                  lines += [s for s in f.read_text().splitlines() if s.strip() and not s.lstrip().startswith('#')]
+          assert lines and not any('passwall' in s.lower() or 'sourceforge' in s.lower() for s in lines), lines
+          assert (root/'www/luci-static/m3e/cascade.css').is_file()
+          assert (root/'www/luci-static/m3e-blue').is_symlink()
+          print('Q20 OK:', len(pk), 'packages;', sorted(need))
+          print('\n'.join(lines))
+          EOF
       - name: Upload verified images
         uses: actions/upload-artifact@v4
         with:
@@ -39,3 +61,4 @@ jobs:
             imagebuilder/bin/targets/ramips/mt7621/*q20*sysupgrade.bin
             imagebuilder/bin/targets/ramips/mt7621/*q20*initramfs*
             imagebuilder/bin/targets/ramips/mt7621/sha256sums
+            imagebuilder/bin/targets/ramips/mt7621/*q20*.manifest

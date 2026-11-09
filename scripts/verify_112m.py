@@ -76,6 +76,7 @@ assert contents[1][:root_used] == root[:root_used]
 manifest, = source.glob('*xiaomi_mi-router-ax3000t.manifest')
 packages = {line.split(' - ',1)[0] for line in manifest.read_text().splitlines()}
 required = set('dnsmasq-full kmod-inet-diag kmod-tun kmod-nft-tproxy kmod-nft-socket kmod-nft-nat ip-full bash curl ca-bundle unzip'.split())
+required |= set('kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware wpad-basic-mbedtls kmod-nft-offload fitblk kmod-crypto-hw-safexcel'.split())
 assert required <= packages, sorted(required-packages)
 assert 'dnsmasq' not in packages
 assert not set('ruby ruby-yaml lyaml chinadns-ng dns2socks microsocks tcping ipt2socks'.split()) & packages
