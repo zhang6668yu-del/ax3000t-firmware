@@ -25,14 +25,13 @@ jobs:
           mkdir imagebuilder
           tar --zstd -xf imagebuilder.tar.zst -C imagebuilder --strip-components=1
           rm imagebuilder.tar.zst
-      - name: Add upstream PassWall release dependency repository and arch fix
+      - name: Prepare arch and inject M3E theme
         run: |
-          curl --fail --location --retry 3 -o imagebuilder/keys/openwrt-passwall-build.pem https://master.dl.sourceforge.net/project/openwrt-passwall-build/apk.pub
-          echo 'https://master.dl.sourceforge.net/project/openwrt-passwall-build/releases/packages-25.12/mipsel_24kc/passwall_packages/packages.adb' >> imagebuilder/repositories
-          mkdir -p files-q20/etc/apk/keys files-q20/etc/apk/repositories.d
-          cp imagebuilder/keys/openwrt-passwall-build.pem files-q20/etc/apk/keys/
-          printf '%s\n' 'https://master.dl.sourceforge.net/project/openwrt-passwall-build/releases/packages-25.12/mipsel_24kc/passwall_packages/packages.adb' 'https://master.dl.sourceforge.net/project/openwrt-passwall-build/releases/packages-25.12/mipsel_24kc/passwall_luci/packages.adb' > files-q20/etc/apk/repositories.d/passwall.list
+          mkdir -p files-q20/etc/apk files-q20/www/luci-static files-q20/usr/share/ucode/luci/template/themes files-q20/etc/uci-defaults
           printf '%s\n' 'mipsel_24kc' 'all' > files-q20/etc/apk/arch
+          cp -r files-theme-m3e/www/luci-static/* files-q20/www/luci-static/
+          cp -r files-theme-m3e/ucode/template/themes/* files-q20/usr/share/ucode/luci/template/themes/
+          cp files-theme-m3e/etc/uci-defaults/30_luci-theme-m3e files-q20/etc/uci-defaults/
       - name: Build firmware with minimal kernel dependencies
         working-directory: imagebuilder
         run: |
